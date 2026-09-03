@@ -17,10 +17,16 @@ need.
 
 ```
 frontend/  React 18 + Vite + Tailwind CSS 4 + Recharts
-                │  REST (JSON / multipart), JWT bearer auth
+                │  REST (JSON / multipart), bearer auth
                 ▼
 backend/   FastAPI (Python)
-    ├─ auth          JWT login, role-based access (admin / inspector / viewer)
+    ├─ auth          Proxies to Supabase Auth - the frontend only ever talks
+    │                to our /auth/* endpoints, which verify passwords and
+    │                mint/validate sessions via Supabase under the hood, so
+    │                switching identity providers didn't touch the frontend
+    │                at all. Role (admin / inspector / viewer) lives in each
+    │                Supabase user's app_metadata, settable only by the
+    │                service role key - a user can never self-elevate.
     ├─ OCR           EasyOCR (pure-pip, no external binary) extracts text +
     │                bounding boxes from the uploaded label image
     ├─ rule engine   Deterministic regex-based matcher against the mandatory
@@ -32,6 +38,10 @@ backend/   FastAPI (Python)
     │                override a compliant/non-compliant verdict, only flag
     │                something for human review
     ├─ report        ReportLab renders a PDF compliance report per scan
+    ├─ storage       Label images persisted to Supabase Storage (falls back
+    │                to local disk if SUPABASE_URL isn't set) - the app
+    │                works with bytes in memory throughout, never assuming
+    │                a local filesystem
     └─ database      SQLAlchemy ORM → SQLite file by default (zero setup);
                      point DATABASE_URL at a Supabase/Postgres connection
                      string to move to a shared/production database with no
@@ -40,6 +50,26 @@ backend/   FastAPI (Python)
 
 No Docker is used anywhere — both services run directly with a Python
 virtual environment and Node.js.
+
+### Using Supabase (required for auth; recommended for DB/storage before deploying)
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. **Database**: Project Settings → Database → Connection String → URI tab.
+   Use the **Session pooler** or **Transaction pooler** string, not "Direct
+   connection" - Supabase's direct-connection hostname is IPv6-only, which
+   fails to resolve on many networks/ISPs (`could not translate host name`).
+   Paste it into `DATABASE_URL` in `backend/.env`.
+3. **Auth + Storage keys**: Project Settings → Data API for the Project URL,
+   and Project Settings → API Keys for the publishable/anon key and the
+   `service_role` secret key. Paste into `SUPABASE_URL`,
+   `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. The storage bucket
+   (`label-images` by default) is created automatically on backend startup,
+   as is the default admin account (in Supabase Auth, not a local table).
+
+Auth has no local fallback - unlike the database (SQLite) and storage
+(local disk), the app cannot authenticate anyone without all three Supabase
+values set, since user accounts live in Supabase Auth rather than in our own
+database.
 
 ## Prerequisites
 
@@ -58,8 +88,10 @@ pip install -r requirements.txt
 copy .env.example .env         # Windows: copy, macOS/Linux: cp
 ```
 
-Edit `.env` if you want to:
-- point `DATABASE_URL` at a Supabase/Postgres instance instead of SQLite
+You must set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` in `.env` before the app can authenticate anyone
+(see "Using Supabase" above). Optionally also:
+- point `DATABASE_URL` at Supabase Postgres instead of local SQLite
 - set a `GROQ_API_KEY` (free at https://console.groq.com/keys) to enable the
   AI-assist layer — the app works fully without it
 - change the seeded default admin credentials
@@ -71,7 +103,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 The first run automatically creates the database tables and seeds a default
-admin account (see `.env.example` for credentials: 
+admin account in Supabase Auth (see `.env.example` for credentials:
 `admin@legalmetrology.gov.in` / `Admin@123`). API docs are at
 `http://localhost:8000/docs`.
 
@@ -116,8 +148,10 @@ Open `http://localhost:5173` and sign in with the default admin account.
 | `backend/app/services/rules_data.py` | Digitised mandatory-declaration list & Second Schedule font-size table |
 | `backend/app/services/rule_engine.py` | Applies the rules to OCR output, produces the compliant/violation verdicts |
 | `backend/app/services/ocr_service.py` | EasyOCR text + bounding-box extraction |
-| `backend/app/services/groq_service.py` | Optional Groq LLM assist layer |
+| `backend/app/services/groq_service.py` | Optional Groq vision assist layer |
 | `backend/app/services/report_generator.py` | PDF compliance report generation |
+| `backend/app/services/storage_service.py` | Supabase Storage / local-disk file storage abstraction |
+| `backend/app/services/supabase_auth_service.py` | Proxies login/session-verification/user-management to Supabase Auth |
 | `backend/app/routers/` | REST API: auth, scans, dashboard |
 | `frontend/src/pages/` | Login, Dashboard, New Scan, Scan Detail, Repository, Users |
 
@@ -140,7 +174,6 @@ would additionally need:
   that are hard to validate by regex alone; these are flagged for manual
   verification in this prototype and would benefit from a fine-tuned
   extraction model.
-- **Object storage** (e.g. Supabase Storage or S3) instead of local disk for
-  uploaded images/reports once deployed beyond a single machine.
-- **Supabase Auth / RLS** could replace the custom JWT auth if standardising
-  on the Supabase platform end-to-end.
+- **Row Level Security** on the `scans`/`declarations` tables if the
+  database is ever queried directly (e.g. via Supabase's client libraries)
+  rather than exclusively through this backend.
