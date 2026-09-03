@@ -9,7 +9,6 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%7C%20Auth%20%7C%20Storage-3ECF8E?logo=supabase&logoColor=white)
 ![Groq](https://img.shields.io/badge/Groq-Vision%20AI-F55036?logoColor=white)
-![No Docker](https://img.shields.io/badge/Docker-not%20required-inactive)
 
 ---
 
@@ -255,8 +254,8 @@ Groq's model catalog changes over time — if a model id 404s, run
 ## Deployment
 
 See **[DEPLOY.md](DEPLOY.md)** for the full production deployment guide —
-covers a VPS (systemd + Nginx) or Render for the backend, and Vercel/Netlify
-(or static Nginx) for the frontend, plus a post-deployment checklist and
+**Render** for the backend and **Vercel** (or Netlify) for the frontend, no
+server management or Docker required, plus a post-deployment checklist and
 troubleshooting for the exact issues this project has hit in practice
 (Supabase's IPv6-only direct connection, pooled-connection drops, CORS
 origin mismatches, and Groq model catalog changes).
