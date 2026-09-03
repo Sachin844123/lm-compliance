@@ -41,15 +41,6 @@ backend/   FastAPI (Python)
 No Docker is used anywhere — both services run directly with a Python
 virtual environment and Node.js.
 
-### Why SQLite by default, with Supabase as a drop-in upgrade
-
-SQLAlchemy is the data layer, so the only thing that changes to move from the
-local file database to Supabase (hosted Postgres) is the `DATABASE_URL`
-environment variable — no code changes. This lets the prototype run
-immediately with zero external accounts, while staying one config change away
-from a shared Postgres database (Supabase or otherwise) for multi-officer,
-production use.
-
 ## Prerequisites
 
 - Python 3.10+
