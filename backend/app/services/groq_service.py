@@ -7,11 +7,14 @@ reproducible for enforcement use. Groq is used only in a supporting role,
 and only ever to *add* information, never to overturn a verdict the rule
 engine already reached:
 
-  1. `analyze_image` sends the label photo itself to a Groq vision model as
+  1. `identify_product` reads a front-of-pack photo to auto-fill the
+     product name, brand, and category, so nothing has to be typed in
+     manually.
+  2. `analyze_image` sends the label photo itself to a Groq vision model as
      an independent second look - it can read declarations OCR garbled or
      split across lines, and can visually flag legibility issues (tiny
      font, low contrast) that a pixel-height measurement might miss.
-  2. If the vision call is unavailable/fails, `generate_summary` still
+  3. If the vision call is unavailable/fails, `generate_summary` still
      produces a plain-language report summary from a text-only model.
 
 If GROQ_API_KEY is not configured, every function no-ops and the app keeps
@@ -49,6 +52,61 @@ def _fallback_summary(product_name: str, declarations: list[dict]) -> str:
         return f"{product_name} appears to comply with all checked Legal Metrology declarations."
     issues = "; ".join(f"{d['label']} ({d['issue']})" for d in violations)
     return f"{product_name} has {len(violations)} potential issue(s): {issues}."
+
+
+def identify_product(image_bytes: bytes, mime: str) -> dict:
+    """
+    Read a front-of-pack photo and identify the product, so the inspector
+    never has to type in a name/brand/category. Returns
+    {"product_name": str, "brand_name": str, "category": str} with empty
+    strings for anything it couldn't determine, or {} if the vision call is
+    unavailable/fails (caller should fall back to an OCR-based heuristic).
+    """
+    client = _get_client()
+    if client is None:
+        return {}
+
+    try:
+        b64 = base64.b64encode(image_bytes).decode("ascii")
+        prompt = (
+            "Look at this photo of the front of a packaged consumer product "
+            "sold in India. Identify:\n"
+            "1. product_name - the full product name as printed (include "
+            "variant/flavour and pack size if shown, e.g. 'Refined Sunflower "
+            "Oil 1 L').\n"
+            "2. brand_name - the brand/company name.\n"
+            "3. category - a short general category (e.g. 'Edible Oil', "
+            "'Biscuits', 'Rice', 'Snacks').\n\n"
+            "Respond ONLY with a JSON object: "
+            '{"product_name": "...", "brand_name": "...", "category": "..."} '
+            "- use an empty string for any field you genuinely cannot determine."
+        )
+        resp = client.chat.completions.create(
+            model=settings.groq_vision_model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime};base64,{b64}"},
+                        },
+                    ],
+                }
+            ],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content)
+        return {
+            "product_name": (data.get("product_name") or "").strip(),
+            "brand_name": (data.get("brand_name") or "").strip(),
+            "category": (data.get("category") or "").strip(),
+        }
+    except Exception:
+        logger.exception("Groq identify_product failed")
+        return {}
 
 
 def analyze_image(image_bytes: bytes, mime: str, product_name: str, declarations: list[dict]) -> dict:
