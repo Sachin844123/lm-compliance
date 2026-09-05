@@ -57,12 +57,17 @@ reports to support the officer's own judgment, not replace it.
   with an OCR-based heuristic fallback) — nothing is typed in.
 - **Image-based label scanning** — upload a photo of the product's
   declarations panel for automated compliance analysis.
-- **OCR text & layout extraction** — detects every line of printed text on
-  the label along with its position and pixel dimensions.
+- **OCR text & layout extraction** — corrects phone EXIF rotation, upscales
+  and enhances the photo, then detects every line of printed text along
+  with its position and pixel dimensions. Tuned specifically for the
+  small/dense print on real product labels rather than scene text.
 - **Rule-based compliance engine** — deterministic, auditable matching of
   extracted text against the mandatory declarations required by the Rules,
   including the Second Schedule font-size thresholds for net quantity and
-  MRP.
+  MRP. A typo-tolerant fuzzy matching tier catches declarations OCR noise
+  would otherwise miss, before falling back to the optional AI vision check.
+- **Photo quality feedback** — flags a blurry or low-resolution photo
+  explicitly, rather than silently returning unreliable results.
 - **AI-assisted second opinion** — an optional vision-language model reviews
   the label photo directly, recovering declarations OCR misread and flagging
   legibility issues a pixel measurement alone would miss. It can only add
@@ -87,7 +92,7 @@ reports to support the officer's own judgment, not replace it.
 |---|---|
 | Frontend | React 18, Vite, Tailwind CSS 4, React Router, Recharts, Axios |
 | Backend | Python, FastAPI, SQLAlchemy |
-| OCR | EasyOCR (pure-pip, no external binary dependency) |
+| OCR | EasyOCR (pure-pip, no external binary dependency), OpenCV preprocessing, RapidFuzz for tolerant matching |
 | AI assist | Groq (vision-language model) |
 | PDF generation | ReportLab |
 | Database | Supabase Postgres (SQLite fallback for local dev) |
