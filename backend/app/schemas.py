@@ -56,10 +56,11 @@ class ScanOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    product_name: str
+    product_name: Optional[str] = None
     brand_name: Optional[str] = None
     category: Optional[str] = None
     image_path: str
+    front_image_path: Optional[str] = None
     status: ScanStatus
     overall_score: float
     created_at: datetime.datetime
