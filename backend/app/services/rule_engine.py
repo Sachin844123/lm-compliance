@@ -1,5 +1,7 @@
 import re
 
+from rapidfuzz import fuzz
+
 from . import groq_service
 from .ocr_service import OcrLine, full_text
 from .rules_data import (
@@ -7,6 +9,8 @@ from .rules_data import (
     min_required_mm_for_net_quantity,
     MRP_MIN_HEIGHT_MM,
 )
+
+FUZZY_MATCH_THRESHOLD = 80
 
 
 def _build_candidates(lines: list[OcrLine]) -> list[OcrLine]:
@@ -40,6 +44,42 @@ def _find_match(lines: list[OcrLine], patterns: list[str]) -> OcrLine | None:
     return None
 
 
+def _find_fuzzy_match(lines: list[OcrLine], anchor_keywords: list[str]) -> OcrLine | None:
+    """
+    Real phone photos routinely garble OCR output badly enough that strict
+    regex misses a declaration that a human would clearly recognise (e.g.
+    "MRP" read as "MFP", "Manufactured By" read as "Manuiactured 8y"). This
+    scores every candidate line against each anchor keyword with a
+    typo-tolerant similarity metric and accepts the best match above a
+    threshold, as a middle tier between strict regex and the (optional,
+    paid) AI vision fallback.
+
+    fuzz.partial_ratio finds the best alignment of the *shorter* string
+    within the longer one, which means a single stray OCR character (noise
+    like a lone "C") scores a trivial ~100% "match" against almost any
+    keyword - a single character is a substring of nearly everything. Each
+    candidate line must be a reasonable fraction of the keyword's own
+    length before it's even scored, so short noise fragments can't produce
+    a false "found" verdict.
+    """
+    if not anchor_keywords:
+        return None
+    best_line = None
+    best_score = 0.0
+    for line in _build_candidates(lines):
+        text_upper = line["text"].upper().strip()
+        for keyword in anchor_keywords:
+            keyword_upper = keyword.upper()
+            min_len = max(6, int(len(keyword_upper) * 0.6))
+            if len(text_upper) < min_len:
+                continue
+            score = fuzz.partial_ratio(keyword_upper, text_upper)
+            if score > best_score:
+                best_score = score
+                best_line = line
+    return best_line if best_score >= FUZZY_MATCH_THRESHOLD else None
+
+
 def evaluate_scan(
     lines: list[OcrLine],
     pdp_area_cm2: float | None,
@@ -54,6 +94,11 @@ def evaluate_scan(
 
     for decl in MANDATORY_DECLARATIONS:
         match = _find_match(lines, decl["patterns"])
+        fuzzy_used = False
+        if match is None and decl.get("anchor_keywords"):
+            match = _find_fuzzy_match(lines, decl["anchor_keywords"])
+            fuzzy_used = match is not None
+
         entry = {
             "key": decl["key"],
             "label": decl["label"],
@@ -102,6 +147,13 @@ def evaluate_scan(
             entry["issue"] = f"Declaration not detected on the label ({decl['rule_ref']})."
             if not decl.get("optional"):
                 missing_labels_to_defs[decl["label"]] = entry
+
+        if fuzzy_used and entry["found"]:
+            note = (
+                "Matched via fuzzy, typo-tolerant keyword search because OCR "
+                "text was unclear - please verify the exact wording manually."
+            )
+            entry["issue"] = f"{entry['issue']} {note}" if entry["issue"] else note
 
         results.append(entry)
 
