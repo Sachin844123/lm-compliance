@@ -52,8 +52,11 @@ reports to support the officer's own judgment, not replace it.
 
 ## Key Features
 
-- **Image-based label scanning** — upload a photo of a product's principal
-  display panel for automated analysis.
+- **Zero manual data entry** — upload a front-of-pack photo and the product
+  name, brand, and category are identified automatically (via Groq vision,
+  with an OCR-based heuristic fallback) — nothing is typed in.
+- **Image-based label scanning** — upload a photo of the product's
+  declarations panel for automated compliance analysis.
 - **OCR text & layout extraction** — detects every line of printed text on
   the label along with its position and pixel dimensions.
 - **Rule-based compliance engine** — deterministic, auditable matching of
@@ -235,13 +238,14 @@ Groq's model catalog changes over time — if a model id 404s, run
 
 1. **Sign in** as the seeded admin, or have an admin create inspector/viewer
    accounts from the **Users** page.
-2. **New Scan** — upload a clear photo of a product's principal display
-   panel. Optionally provide the panel's physical area (cm²) and a
-   calibration factor (mm per pixel — e.g. by photographing a ruler
-   alongside the label) so the font-size rule for net quantity can be
-   checked precisely. Without it, the system still checks presence and
-   correctness of every declaration, but marks font-size as "unverified"
-   rather than failing it.
+2. **New Scan** — upload two photos: the product's front (used to
+   auto-identify the product name, brand, and category — nothing is typed
+   in) and its declarations panel (checked for compliance). Optionally
+   provide the panel's physical area (cm²) and a calibration factor (mm per
+   pixel — e.g. by photographing a ruler alongside the label) so the
+   font-size rule for net quantity can be checked precisely. Without it,
+   the system still checks presence and correctness of every declaration,
+   but marks font-size as "unverified" rather than failing it.
 3. **Scan Detail** shows every mandatory declaration: whether it was found,
    the matched OCR text, measured vs. required font height, and a
    compliant/violation verdict per rule reference — plus a downloadable PDF
@@ -271,12 +275,13 @@ backend is running. Summary of the main endpoints:
 | `GET` | `/auth/me` | Any role | Return the current authenticated user. |
 | `POST` | `/auth/users` | Admin | Create a new user with a given role. |
 | `GET` | `/auth/users` | Admin | List all users. |
-| `POST` | `/scans/` | Any role | Upload a label image and run the full compliance pipeline. |
+| `POST` | `/scans/` | Any role | Upload a front-of-pack photo (auto-identifies the product) and a declarations panel photo, and run the full compliance pipeline. |
 | `GET` | `/scans/` | Any role | List scans, filterable by status and searchable by product name. |
 | `GET` | `/scans/{id}` | Any role | Full detail for one scan, including all declarations. |
-| `GET` | `/scans/{id}/image` | Any role | The scan's label photo. |
+| `GET` | `/scans/{id}/image` | Any role | The scan's declarations panel photo. |
+| `GET` | `/scans/{id}/front-image` | Any role | The scan's front-of-pack photo. |
 | `GET` | `/scans/{id}/report` | Any role | Generate and download the scan's PDF compliance report. |
-| `DELETE` | `/scans/{id}` | Admin, Inspector | Delete a scan and its stored image. |
+| `DELETE` | `/scans/{id}` | Admin, Inspector | Delete a scan and both its stored images. |
 | `GET` | `/dashboard/stats` | Any role | Aggregate compliance rate, violation breakdown, and recent scans. |
 
 ## Compliance Rules Reference
