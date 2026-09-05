@@ -20,6 +20,7 @@ MANDATORY_DECLARATIONS = [
             r"(manufactured|mfd|marketed|packed|packer|imported)\s*(by|for)?[^\n]{0,80}",
             r"\bmfg\.?\s*by\b",
         ],
+        "anchor_keywords": ["MANUFACTURED BY", "MFD BY", "MARKETED BY", "PACKED BY", "PACKER"],
         "requires_font_check": False,
     },
     {
@@ -38,6 +39,7 @@ MANDATORY_DECLARATIONS = [
             r"net\s*(wt|weight|qty|quantity|vol|volume|contents)?\.?\s*[:\-]?\s*\d+(\.\d+)?\s*(kg|g|gm|gms|mg|l|ltr|litre|liter|ml|cl|pcs|pieces|n|u|units?)\b",
             r"\b\d+(\.\d+)?\s*(kg|g|gm|gms|ml|l|ltr|litre)\b",
         ],
+        "anchor_keywords": ["NET WEIGHT", "NET WT", "NET QTY", "NET QUANTITY", "NET VOLUME", "NET CONTENTS"],
         "requires_font_check": True,
     },
     {
@@ -48,6 +50,7 @@ MANDATORY_DECLARATIONS = [
             r"(mfg|manufactured|packed|pkd|packing|mfd|import(ed)?)\.?\s*(date|on|dt)?\.?\s*[:\-]?\s*(\d{1,2}[\/\-. ])?\d{2,4}",
             r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*[\-/]?\s*\d{2,4}",
         ],
+        "anchor_keywords": ["MFG DATE", "MFD DATE", "MANUFACTURING DATE", "PACKED ON", "PACKAGING DATE", "DATE OF MANUFACTURE"],
         "requires_font_check": False,
     },
     {
@@ -58,6 +61,7 @@ MANDATORY_DECLARATIONS = [
             r"(mrp|m\.r\.p\.?|maximum\s*retail\s*price)[^\d]{0,25}(rs\.?|inr|₹)?\s?\d+([.,]\d{1,2})?",
             r"(₹|rs\.?)\s?\d+([.,]\d{1,2})?[^\n]{0,40}(incl(usive)?\s*of\s*(all\s*)?tax)",
         ],
+        "anchor_keywords": ["MRP", "M.R.P", "MAXIMUM RETAIL PRICE", "INCLUSIVE OF ALL TAXES"],
         "requires_font_check": True,
     },
     {
@@ -70,6 +74,7 @@ MANDATORY_DECLARATIONS = [
             r"\b\d{6}\b",
             r"[\w.+-]+@[\w-]+\.[a-z]{2,}",
         ],
+        "anchor_keywords": ["CUSTOMER CARE", "CONSUMER CARE", "TOLL FREE", "HELPLINE", "FOR COMPLAINTS"],
         "requires_font_check": False,
     },
     {
@@ -77,6 +82,7 @@ MANDATORY_DECLARATIONS = [
         "label": "Country of origin (imported goods)",
         "rule_ref": "Rule 6(8) / Legal Metrology (PC) Amendment, 2017",
         "patterns": [r"country\s*of\s*origin", r"made\s*in\s*[a-z]+"],
+        "anchor_keywords": ["COUNTRY OF ORIGIN", "MADE IN"],
         "requires_font_check": False,
         "optional": True,
     },
@@ -85,6 +91,7 @@ MANDATORY_DECLARATIONS = [
         "label": "Unit sale price (Rs. per kg / litre / unit)",
         "rule_ref": "Rule 6(1)(e), Explanation",
         "patterns": [r"(unit\s*sale\s*price|price\s*per\s*(kg|g|l|ml|unit))"],
+        "anchor_keywords": ["UNIT SALE PRICE", "PRICE PER KG", "PRICE PER LITRE"],
         "requires_font_check": False,
         "optional": True,
     },
