@@ -125,12 +125,18 @@ reports to support the officer's own judgment, not replace it.
    Supabase Auth, so switching identity providers never touched the
    frontend. Roles live in each Supabase user's `app_metadata`, writable
    only with the service-role key.
-2. **OCR** — EasyOCR extracts every line of text on the uploaded label, with
-   its bounding box and pixel height.
+2. **Preprocessing + OCR** — `image_preprocessing.py` corrects EXIF
+   rotation, upscales undersized photos, denoises, and contrast-enhances
+   the image; EasyOCR then extracts every line of text with its bounding
+   box and pixel height. Bounding boxes are scaled back to the original
+   photo's pixel space so a physical mm-per-pixel calibration still gives
+   correct font-size measurements after upscaling.
 3. **Rule engine** — a deterministic matcher (`rule_engine.py`) checks the
    extracted text against the mandatory declarations table
-   (`rules_data.py`), including a sliding-window match for declarations OCR
-   splits across lines, and the Second Schedule font-size thresholds.
+   (`rules_data.py`): first with regex and a sliding-window match for
+   declarations OCR splits across lines, then with a typo-tolerant fuzzy
+   match against each declaration's anchor keywords for text OCR garbled
+   too badly for regex, then the Second Schedule font-size thresholds.
 4. **AI assist (optional)** — if configured, Groq's vision model looks at
    the photo directly as a second opinion: recovering anything OCR missed,
    flagging visible legibility issues, and writing the report summary. It
@@ -335,9 +341,10 @@ SIH/
 │   │   │   ├── scans.py             Upload, list, detail, image, report, delete
 │   │   │   └── dashboard.py         Aggregate compliance statistics
 │   │   └── services/
-│   │       ├── ocr_service.py             EasyOCR text + bounding-box extraction
+│   │       ├── image_preprocessing.py      EXIF fix, upscaling, denoise, contrast enhancement
+│   │       ├── ocr_service.py               EasyOCR text + bounding-box extraction
 │   │       ├── rules_data.py               Mandatory declarations & font-size table
-│   │       ├── rule_engine.py               Deterministic compliance verdicts
+│   │       ├── rule_engine.py               Regex + fuzzy compliance verdicts
 │   │       ├── groq_service.py              Optional Groq vision AI-assist layer
 │   │       ├── report_generator.py          PDF compliance report generation
 │   │       ├── storage_service.py           Supabase Storage / local-disk abstraction
