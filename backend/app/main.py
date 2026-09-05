@@ -1,4 +1,7 @@
 import sys
+import time
+
+from sqlalchemy.exc import OperationalError
 
 if sys.platform == "win32":
     # EasyOCR's first-run model download prints a progress bar using Unicode
@@ -17,7 +20,27 @@ from .database import Base, engine
 from .routers import auth, scans, dashboard
 from .services import storage_service, supabase_auth_service
 
-Base.metadata.create_all(bind=engine)
+def _create_all_with_retry(attempts: int = 3, delay_seconds: float = 2.0) -> None:
+    """
+    Supabase's connection pooler occasionally drops a brand-new connection
+    outright (a transient network blip, not a stale-connection problem
+    pool_pre_ping solves) - this is the very first query the app makes, so
+    there's no pooled connection to retry with. A couple of short retries
+    turns an occasional dropped connection here into a slightly slower
+    startup instead of a crashed process.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except OperationalError:
+            if attempt == attempts:
+                raise
+            print(f"Database connection attempt {attempt} failed, retrying in {delay_seconds}s...")
+            time.sleep(delay_seconds)
+
+
+_create_all_with_retry()
 
 app = FastAPI(
     title="Legal Metrology Compliance Checker",
