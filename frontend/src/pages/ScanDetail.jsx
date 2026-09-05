@@ -9,6 +9,7 @@ export default function ScanDetail() {
   const [scan, setScan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState(null);
+  const [frontImageUrl, setFrontImageUrl] = useState(null);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -16,10 +17,11 @@ export default function ScanDetail() {
   }, [id]);
 
   useEffect(() => {
-    // The image endpoint requires auth (a Bearer token), which a plain <img
-    // src> can't send - fetch it through the authenticated client instead
-    // and turn the result into an object URL.
+    // These endpoints require auth (a Bearer token), which a plain <img
+    // src> can't send - fetch through the authenticated client instead and
+    // turn the result into an object URL.
     let objectUrl;
+    let frontObjectUrl;
     client
       .get(`/scans/${id}/image`, { responseType: "blob" })
       .then(({ data }) => {
@@ -27,8 +29,16 @@ export default function ScanDetail() {
         setImageUrl(objectUrl);
       })
       .catch(() => setImageUrl(null));
+    client
+      .get(`/scans/${id}/front-image`, { responseType: "blob" })
+      .then(({ data }) => {
+        frontObjectUrl = URL.createObjectURL(data);
+        setFrontImageUrl(frontObjectUrl);
+      })
+      .catch(() => setFrontImageUrl(null));
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (frontObjectUrl) URL.revokeObjectURL(frontObjectUrl);
     };
   }, [id]);
 
@@ -84,14 +94,27 @@ export default function ScanDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-            {imageUrl ? (
-              <img src={imageUrl} alt={scan.product_name} className="w-full rounded-lg" />
-            ) : (
-              <div className="w-full h-40 flex items-center justify-center text-sm text-slate-400 bg-slate-50 rounded-lg">
-                Image unavailable
-              </div>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
+              <p className="text-xs font-medium text-slate-500 mb-2">Front of Pack</p>
+              {frontImageUrl ? (
+                <img src={frontImageUrl} alt="Front of pack" className="w-full rounded-lg" />
+              ) : (
+                <div className="w-full h-32 flex items-center justify-center text-xs text-slate-400 bg-slate-50 rounded-lg">
+                  Unavailable
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
+              <p className="text-xs font-medium text-slate-500 mb-2">Declarations Panel</p>
+              {imageUrl ? (
+                <img src={imageUrl} alt={scan.product_name} className="w-full rounded-lg" />
+              ) : (
+                <div className="w-full h-32 flex items-center justify-center text-xs text-slate-400 bg-slate-50 rounded-lg">
+                  Unavailable
+                </div>
+              )}
+            </div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <p className="text-sm font-medium text-slate-700 mb-1">Compliance Score</p>
