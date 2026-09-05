@@ -34,11 +34,13 @@ class Scan(Base):
     __tablename__ = "scans"
 
     id = Column(Integer, primary_key=True, index=True)
-    product_name = Column(String, nullable=False)
+    # Auto-identified from front_image_path (Groq vision, or an OCR-based
+    # heuristic fallback) - no longer manually typed by the inspector.
+    product_name = Column(String, nullable=True)
     brand_name = Column(String, nullable=True)
     category = Column(String, nullable=True)
     image_path = Column(String, nullable=False)
-    thumbnail_path = Column(String, nullable=True)
+    front_image_path = Column(String, nullable=True)
 
     calibration_mm_per_px = Column(Float, nullable=True)
     pdp_area_cm2 = Column(Float, nullable=True)
